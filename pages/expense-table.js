@@ -83,6 +83,7 @@ const EditableCell = ({
   // We need to keep and update the state of the cell normally
   const [value, setValue] = React.useState(initialValue)
   const [isReadOnly, setReadOnly] = useState(true);
+  const [isSelected, setSelected] = useState(false);
 
   const onChange = e => {
     setValue(e.target.value)
@@ -92,11 +93,16 @@ const EditableCell = ({
   const onBlur = () => {
     updateMyData(index, id, value)
     setReadOnly(true)
+    setSelected(false)
   }
 
   const makeEditable = (event) => {
     event.preventDefault()
     setReadOnly(false)
+  }
+
+  const selectCell = () => {
+    setSelected(true)
   }
 
 
@@ -106,9 +112,11 @@ const EditableCell = ({
   }, [initialValue])
 
   return <Input
+      backgroundColor={isSelected ? "gray.100" : "none"}
       isReadOnly={isReadOnly}
       onDoubleClick={makeEditable}
       onTouchStart={makeEditable}
+      onClick={selectCell}
       value={value}
       border={"none"}
       onChange={onChange}
@@ -134,6 +142,15 @@ function DataTable({columns, data, updateMyData, skipPageReset}) {
       useExpanded,
   )
 
+  const [selectedCell, setSelected] = useState({rowIndex: 0, columnId: "date"});
+
+
+  // const selectCell = () => {
+  //   rows.map((row, index) => {
+  //     row
+  //   })
+  // }
+  //
   return (
       <Table
           mt={"20vh"}
@@ -175,6 +192,7 @@ function DataTable({columns, data, updateMyData, skipPageReset}) {
                       <Td {...cell.getCellProps()}
                           isNumeric={cell.column.isNumeric}
                           padding={`0`}
+                          backgroundColor={useIsSelected(cell, selectedCell)? "gray.100": ""}
                       >
                         {cell.render("Cell")}
                       </Td>
@@ -187,10 +205,43 @@ function DataTable({columns, data, updateMyData, skipPageReset}) {
   );
 }
 
-export default function ExpenseTable() {
+const useKeyPress = function(targetKey) {
+  const [keyPressed, setKeyPressed] = useState(false);
 
+  function downHandler({ key }) {
+    if (key === targetKey) {
+      setKeyPressed(true);
+    }
+  }
+
+  const upHandler = ({ key }) => {
+    if (key === targetKey) {
+      setKeyPressed(false);
+    }
+  };
+
+  React.useEffect(() => {
+    window.addEventListener("keydown", downHandler);
+    window.addEventListener("keyup", upHandler);
+
+    return () => {
+      window.removeEventListener("keydown", downHandler);
+      window.removeEventListener("keyup", upHandler);
+    };
+  });
+
+  return keyPressed;
+};
+
+const useIsSelected = function(cell, selectedCell) {
+  return cell.column.id === selectedCell.columnId &&
+      cell.row.index === selectedCell.rowIndex;
+}
+
+export default function ExpenseTable() {
   const [data, setData] = React.useState(() => initialData())
   const [skipPageReset, setSkipPageReset] = React.useState(false)
+
   const columns = React.useMemo(
       () => [
         {
@@ -219,6 +270,16 @@ export default function ExpenseTable() {
       [],
   )
 
+  const downPress = useKeyPress("ArrowDown");
+  const upPress = useKeyPress("ArrowUp");
+  const leftPress = useKeyPress("ArrowLeft");
+  const rightPress = useKeyPress("ArrowRight");
+  const enterPress = useKeyPress("Enter");
+  // to setSelectedCell onKeyPress
+  // determine next cell (based on direction)
+  // by increase or decrease row index by 1 | up/down
+  // determine next columnId based on columnsList? | left/right
+
   const updateMyData = (rowIndex, columnId, value) => {
     // We also turn on the flag to not reset the page
     setSkipPageReset(true)
@@ -239,6 +300,12 @@ export default function ExpenseTable() {
       <Flex
           justifyContent={"center"}
       >
+        <p>
+          {downPress? "down" : ""}
+          {upPress? "up" : ""}
+          {leftPress? "left" : ""}
+          {rightPress? "right" : ""}
+        </p>
         <DataTable
             columns={columns}
             data={data}
